@@ -111,7 +111,7 @@ function asString(v: string | number | undefined, fallback: string): string {
 function parseOwners(raw: string): string[] {
   return raw
     .split(/[,\n\s]+/)
-    .map((x) => x.trim())
+    .map((x) => x.trim().toLowerCase())
     .filter(Boolean)
 }
 
@@ -308,7 +308,7 @@ export default function App() {
 
       const owners = parseOwners(safeOwnersRaw)
       if (!owners.length) throw new Error('At least one owner is required')
-      if (!owners.includes(connectedAccount)) {
+      if (!owners.includes(connectedAccount.toLowerCase())) {
         throw new Error('Connected account must be included in owners list')
       }
       if (safeThreshold < 1 || safeThreshold > owners.length) {

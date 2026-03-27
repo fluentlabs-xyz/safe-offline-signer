@@ -1,41 +1,44 @@
-# Fluent Safe UI (Gnosis Safe v1.4.1)
+# Fluent Safe UI App
 
-Frontend-only React app for managing Safe transactions on Fluent networks.
+React + TypeScript + Vite frontend for Safe v1.4.1 on Fluent chains.
 
-- no backend
-- file-based signature exchange
-- Safe contracts pinned to v1.4.1 addresses
-
-## Location
-
-The web app lives in [`app/`](./app).
-
-## Implemented flows
-
-1. Connect wallet and switch between:
-   - Fluent Testnet (`20994`)
-   - Fluent Mainnet (`25363`)
-2. Create/deploy a new Safe (owners, threshold, salt nonce).
-3. Build a Safe transaction from JSON template and export a bundle (`.json`) for other signers.
-4. Load bundle, sign it, re-export updated bundle.
-5. Execute transaction once threshold signatures are collected.
-
-## Quick start
+## Run
 
 ```bash
-cd app
 npm install
 npm run dev
 ```
 
-Build:
+## Build
 
 ```bash
 npm run build
 ```
 
-## Notes
+## Transaction template JSON
 
-- The app uses `@safe-global/protocol-kit` (Safe SDK).
-- Signatures are collected off-chain by sharing JSON bundles.
-- No Safe Transaction Service backend is required for this flow.
+Use this format in **"Build transaction package from JSON"**:
+
+```json
+{
+  "safeAddress": "0xYourSafe",
+  "transactions": [
+    {
+      "to": "0xTarget",
+      "value": "0",
+      "data": "0x",
+      "operation": 0
+    }
+  ],
+  "options": {
+    "nonce": 12,
+    "safeTxGas": "0",
+    "baseGas": "0",
+    "gasPrice": "0",
+    "gasToken": "0x0000000000000000000000000000000000000000",
+    "refundReceiver": "0x0000000000000000000000000000000000000000"
+  }
+}
+```
+
+You can also provide a full `safeTransactionData` object directly.

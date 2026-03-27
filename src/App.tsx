@@ -77,7 +77,7 @@ const NETWORKS: Record<NetworkKey, NetworkConfig> = {
     name: 'Fluent Mainnet',
     chainId: 25363,
     rpcUrl: 'https://rpc.fluent.xyz',
-    explorerUrl: 'https://mainnet.fluentscan.xyz',
+    explorerUrl: 'https://fluentscan.xyz',
   },
   testnet: {
     key: 'testnet',

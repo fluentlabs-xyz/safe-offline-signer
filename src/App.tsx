@@ -3,7 +3,7 @@ import './App.css'
 import Safe, { EthSafeSignature, EthSafeTransaction } from '@safe-global/protocol-kit'
 import type { SafeTransactionData, SafeVersion } from '@safe-global/types-kit'
 import { OperationType } from '@safe-global/types-kit'
-import { BrowserProvider } from 'ethers'
+import { BrowserProvider, Signature, recoverAddress } from 'ethers'
 
 type EthereumProvider = {
   request: (args: { method: string; params?: unknown[] | object }) => Promise<unknown>
@@ -55,6 +55,8 @@ type TxTemplateJson = {
   }
   safeTransactionData?: SafeTransactionData
 }
+
+type UnknownRecord = Record<string, unknown>
 
 const SAFE_CONTRACTS_V141 = {
   compatibilityFallbackHandler: '0xfd0732Dc9E303f09fCEf3a7388Ad10A83459Ec99',
@@ -145,6 +147,139 @@ function downloadJson(filename: string, data: unknown) {
 async function readJsonFile<T>(file: File): Promise<T> {
   const text = await file.text()
   return JSON.parse(text) as T
+}
+
+function asRecord(value: unknown): UnknownRecord | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+  return value as UnknownRecord
+}
+
+function hasField(value: unknown, key: string): boolean {
+  const obj = asRecord(value)
+  return !!obj && key in obj
+}
+
+function normalizeHexSignature(v: unknown): string | null {
+  if (typeof v !== 'string') return null
+  const raw = v.trim()
+  if (!raw.startsWith('0x')) return null
+  if (!/^0x[0-9a-fA-F]+$/.test(raw)) return null
+  return raw
+}
+
+function normalizeV(v: unknown): number {
+  if (typeof v === 'number') return v <= 1 ? v + 27 : v
+  if (typeof v === 'string') {
+    const parsed = v.startsWith('0x') ? Number.parseInt(v, 16) : Number.parseInt(v, 10)
+    if (Number.isNaN(parsed)) throw new Error(`Invalid v value: ${v}`)
+    return parsed <= 1 ? parsed + 27 : parsed
+  }
+  throw new Error('Invalid signature v value')
+}
+
+function signatureFromForgeObject(obj: UnknownRecord): string | null {
+  const dataSig = normalizeHexSignature(obj.signature ?? obj.sig ?? obj.data)
+  if (dataSig) return dataSig
+
+  if (typeof obj.r === 'string' && typeof obj.s === 'string' && obj.v !== undefined) {
+    const normalized = Signature.from({
+      r: obj.r,
+      s: obj.s,
+      v: normalizeV(obj.v),
+    })
+    return normalized.serialized
+  }
+
+  return null
+}
+
+function extractSafeTransactionData(input: UnknownRecord): SafeTransactionData | null {
+  const direct = input.safeTransactionData
+  if (direct && hasField(direct, 'to') && hasField(direct, 'data')) {
+    return direct as SafeTransactionData
+  }
+
+  const nestedSafeTx = asRecord(input.safeTransaction)
+  if (nestedSafeTx?.safeTransactionData && hasField(nestedSafeTx.safeTransactionData, 'to')) {
+    return nestedSafeTx.safeTransactionData as SafeTransactionData
+  }
+
+  const dataField = input.data
+  if (dataField && hasField(dataField, 'to') && hasField(dataField, 'data')) {
+    return dataField as SafeTransactionData
+  }
+
+  return null
+}
+
+function parseBundleLikeJson(raw: unknown, defaults: { chainId: number; network: string }): SafeTxBundle {
+  const root = asRecord(raw)
+  if (!root) throw new Error('JSON root must be an object')
+
+  const safeAddress = String(root.safeAddress ?? root.safe ?? '').trim()
+  if (!safeAddress) throw new Error('safeAddress is required')
+
+  const safeTransactionData = extractSafeTransactionData(root)
+  if (!safeTransactionData) {
+    throw new Error('safeTransactionData is required (or safeTransaction.safeTransactionData)')
+  }
+
+  const safeTxHash = String(root.safeTxHash ?? root.safeTransactionHash ?? root.transactionHash ?? root.hash ?? '').trim()
+
+  const signaturesRaw = root.signatures ?? root.confirmations ?? []
+  const signatures: SignatureJson[] = []
+
+  const pushSignature = (entry: unknown, signerHint?: string) => {
+    const obj = asRecord(entry)
+    const sigHex = obj ? signatureFromForgeObject(obj) : normalizeHexSignature(entry)
+    if (!sigHex) return
+
+    let signer = signerHint || (obj && typeof obj.signer === 'string' ? obj.signer : undefined)
+    const isContractSignature = obj?.isContractSignature === true
+
+    if (!signer) {
+      if (!safeTxHash) {
+        throw new Error('Signature signer missing and safeTxHash not provided to recover signer')
+      }
+      signer = recoverAddress(safeTxHash, sigHex)
+    }
+
+    signatures.push({ signer, data: sigHex, isContractSignature })
+  }
+
+  if (Array.isArray(signaturesRaw)) {
+    for (const entry of signaturesRaw) {
+      if (asRecord(entry)?.owner && asRecord(entry)?.signature) {
+        const e = asRecord(entry)!
+        pushSignature({ signature: e.signature, signer: e.owner, isContractSignature: e.isContractSignature })
+      } else {
+        pushSignature(entry)
+      }
+    }
+  } else {
+    const asObj = asRecord(signaturesRaw)
+    if (asObj) {
+      if (signatureFromForgeObject(asObj)) {
+        pushSignature(asObj)
+      } else {
+        for (const [signer, sigValue] of Object.entries(asObj)) {
+          pushSignature(sigValue, signer)
+        }
+      }
+    }
+  }
+
+  return {
+    version: '1.0',
+    safeVersion: V141,
+    chainId: Number(root.chainId ?? defaults.chainId),
+    network: String(root.network ?? defaults.network),
+    safeAddress,
+    safeTxHash,
+    safeTransactionData,
+    signatures,
+    createdAt: String(root.createdAt ?? new Date().toISOString()),
+  }
 }
 
 function txBundleFromSafeTx(params: {
@@ -430,13 +565,15 @@ export default function App() {
     }
 
     try {
-      const bundle = await readJsonFile<SafeTxBundle>(bundleFile)
-      if (!bundle.safeAddress || !bundle.safeTransactionData) {
-        throw new Error('Invalid bundle format')
-      }
+      const json = await readJsonFile<unknown>(bundleFile)
+      const bundle = parseBundleLikeJson(json, {
+        chainId: network.chainId,
+        network: network.name,
+      })
+
       setLoadedBundle(bundle)
       setProvidedHash(bundle.safeTxHash || '')
-      setStatus('Bundle loaded')
+      setStatus(`Bundle loaded (${bundle.signatures.length} signature(s) parsed)`)
     } catch (err) {
       setStatus(`Load bundle failed: ${(err as Error).message}`)
     }
@@ -669,7 +806,8 @@ export default function App() {
       </section>
 
       <section className="card">
-        <h2>Template JSON format</h2>
+        <h2>Template and bundle JSON formats</h2>
+        <p className="muted">Tx template for constructing Safe transaction data:</p>
         <pre>{`{
   "safeAddress": "0xYourSafe",
   "transactions": [
@@ -688,6 +826,17 @@ export default function App() {
     "gasToken": "0x0000000000000000000000000000000000000000",
     "refundReceiver": "0x0000000000000000000000000000000000000000"
   }
+}`}</pre>
+
+        <p className="muted">Bundle/signature import accepts multiple formats, including forge-style signatures:</p>
+        <pre>{`{
+  "safeAddress": "0xYourSafe",
+  "safeTxHash": "0x...",
+  "safeTransactionData": { "to": "0x...", "value": "0", "data": "0x...", "operation": 0, "safeTxGas": "0", "baseGas": "0", "gasPrice": "0", "gasToken": "0x0000000000000000000000000000000000000000", "refundReceiver": "0x0000000000000000000000000000000000000000", "nonce": 1 },
+  "signatures": [
+    { "signer": "0xOwner", "data": "0x<65-byte-signature>" },
+    { "r": "0x...", "s": "0x...", "v": 27, "signer": "0xOwner2" }
+  ]
 }`}</pre>
       </section>
 

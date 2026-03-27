@@ -148,6 +148,9 @@ pre {
   padding: 12px;
   border-radius: 8px;
   overflow: auto;
+  max-width: 100%;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
   font-size: 12px;
 }
 

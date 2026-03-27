@@ -832,7 +832,18 @@ export default function App() {
         <pre>{`{
   "safeAddress": "0xYourSafe",
   "safeTxHash": "0x...",
-  "safeTransactionData": { "to": "0x...", "value": "0", "data": "0x...", "operation": 0, "safeTxGas": "0", "baseGas": "0", "gasPrice": "0", "gasToken": "0x0000000000000000000000000000000000000000", "refundReceiver": "0x0000000000000000000000000000000000000000", "nonce": 1 },
+  "safeTransactionData": {
+    "to": "0x...",
+    "value": "0",
+    "data": "0x...",
+    "operation": 0,
+    "safeTxGas": "0",
+    "baseGas": "0",
+    "gasPrice": "0",
+    "gasToken": "0x0000000000000000000000000000000000000000",
+    "refundReceiver": "0x0000000000000000000000000000000000000000",
+    "nonce": 1
+  },
   "signatures": [
     { "signer": "0xOwner", "data": "0x<65-byte-signature>" },
     { "r": "0x...", "s": "0x...", "v": 27, "signer": "0xOwner2" }

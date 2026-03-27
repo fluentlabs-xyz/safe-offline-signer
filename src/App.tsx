@@ -341,6 +341,7 @@ export default function App() {
   const [bundleFile, setBundleFile] = useState<File | null>(null)
   const [loadedBundle, setLoadedBundle] = useState<SafeTxBundle | null>(null)
   const [providedHash, setProvidedHash] = useState('')
+  const [activeTab, setActiveTab] = useState<'create' | 'build' | 'sign'>('create')
 
   const effectiveRpcs = useMemo(
     () => ({
@@ -684,125 +685,162 @@ export default function App() {
       </section>
 
       <section className="card">
-        <h2>1) Create new Safe wallet</h2>
-        <p className="muted">Owners can be comma/newline/space separated. Connected wallet must be included.</p>
-        <div className="form-grid">
-          <label>
-            Owners
-            <textarea
-              rows={4}
-              placeholder="0xOwner1, 0xOwner2, ..."
-              value={safeOwnersRaw}
-              onChange={(e) => setSafeOwnersRaw(e.target.value)}
-            />
-          </label>
-          <label>
-            Threshold
-            <input
-              type="number"
-              min={1}
-              value={safeThreshold}
-              onChange={(e) => setSafeThreshold(Number(e.target.value) || 1)}
-            />
-          </label>
-          <label>
-            Salt nonce
-            <input value={safeSaltNonce} onChange={(e) => setSafeSaltNonce(e.target.value)} />
-          </label>
-        </div>
-        <div className="row">
-          <button onClick={createSafeWallet}>Deploy Safe</button>
-          {predictedSafeAddress && <code>Predicted: {predictedSafeAddress}</code>}
-        </div>
-      </section>
-
-      <section className="card">
-        <h2>2) Build transaction package from JSON</h2>
-        <p className="muted">
-          Upload a tx template JSON (transactions/options) or a full safeTransactionData payload. The app computes safeTxHash and
-          exports a shareable signing bundle.
-        </p>
-
-        <div className="form-grid">
-          <label>
-            Safe address
-            <input
-              placeholder="0x..."
-              value={safeAddressInput}
-              onChange={(e) => setSafeAddressInput(e.target.value)}
-            />
-          </label>
-          <label>
-            Transaction template JSON
-            <input
-              type="file"
-              accept="application/json"
-              onChange={(e) => setTxTemplateFile(e.target.files?.[0] ?? null)}
-            />
-          </label>
+        <div className="tab-bar" role="tablist" aria-label="Safe workflow tabs">
+          <button
+            role="tab"
+            aria-selected={activeTab === 'create'}
+            className={`tab-btn ${activeTab === 'create' ? 'active' : ''}`}
+            onClick={() => setActiveTab('create')}
+          >
+            Create Safe
+          </button>
+          <button
+            role="tab"
+            aria-selected={activeTab === 'build'}
+            className={`tab-btn ${activeTab === 'build' ? 'active' : ''}`}
+            onClick={() => setActiveTab('build')}
+          >
+            Build Transaction
+          </button>
+          <button
+            role="tab"
+            aria-selected={activeTab === 'sign'}
+            className={`tab-btn ${activeTab === 'sign' ? 'active' : ''}`}
+            onClick={() => setActiveTab('sign')}
+          >
+            Sign / Execute
+          </button>
         </div>
 
-        <div className="row">
-          <button onClick={constructTransactionFromTemplate}>Build package</button>
-          {createdBundle && (
-            <button onClick={() => downloadJson(`safe-tx-${createdBundle.safeTxHash}.json`, createdBundle)}>
-              Download bundle JSON
-            </button>
+        <div className="tab-content">
+          {activeTab === 'create' && (
+            <>
+              <h2>Create new Safe wallet</h2>
+              <p className="muted">Owners can be comma/newline/space separated. Connected wallet must be included.</p>
+              <div className="form-grid">
+                <label>
+                  Owners
+                  <textarea
+                    rows={4}
+                    placeholder="0xOwner1, 0xOwner2, ..."
+                    value={safeOwnersRaw}
+                    onChange={(e) => setSafeOwnersRaw(e.target.value)}
+                  />
+                </label>
+                <label>
+                  Threshold
+                  <input
+                    type="number"
+                    min={1}
+                    value={safeThreshold}
+                    onChange={(e) => setSafeThreshold(Number(e.target.value) || 1)}
+                  />
+                </label>
+                <label>
+                  Salt nonce
+                  <input value={safeSaltNonce} onChange={(e) => setSafeSaltNonce(e.target.value)} />
+                </label>
+              </div>
+              <div className="row">
+                <button onClick={createSafeWallet}>Deploy Safe</button>
+                {predictedSafeAddress && <code>Predicted: {predictedSafeAddress}</code>}
+              </div>
+            </>
+          )}
+
+          {activeTab === 'build' && (
+            <>
+              <h2>Build transaction package from JSON</h2>
+              <p className="muted">
+                Upload a tx template JSON (transactions/options) or a full safeTransactionData payload. The app computes safeTxHash and
+                exports a shareable signing bundle.
+              </p>
+
+              <div className="form-grid">
+                <label>
+                  Safe address
+                  <input
+                    placeholder="0x..."
+                    value={safeAddressInput}
+                    onChange={(e) => setSafeAddressInput(e.target.value)}
+                  />
+                </label>
+                <label>
+                  Transaction template JSON
+                  <input
+                    type="file"
+                    accept="application/json"
+                    onChange={(e) => setTxTemplateFile(e.target.files?.[0] ?? null)}
+                  />
+                </label>
+              </div>
+
+              <div className="row">
+                <button onClick={constructTransactionFromTemplate}>Build package</button>
+                {createdBundle && (
+                  <button onClick={() => downloadJson(`safe-tx-${createdBundle.safeTxHash}.json`, createdBundle)}>
+                    Download bundle JSON
+                  </button>
+                )}
+              </div>
+
+              {createdBundle && (
+                <div className="result">
+                  <div><b>Safe tx hash:</b> <code>{createdBundle.safeTxHash}</code></div>
+                  <div><b>Signatures:</b> {createdBundle.signatures.length}</div>
+                </div>
+              )}
+            </>
+          )}
+
+          {activeTab === 'sign' && (
+            <>
+              <h2>Sign / execute existing package</h2>
+              <p className="muted">
+                Load a bundle JSON, validate hash, append your signature, re-download, and execute when threshold is met.
+              </p>
+
+              <div className="form-grid">
+                <label>
+                  Bundle JSON
+                  <input
+                    type="file"
+                    accept="application/json"
+                    onChange={(e) => setBundleFile(e.target.files?.[0] ?? null)}
+                  />
+                </label>
+                <label>
+                  Optional hash override/verification
+                  <input
+                    placeholder="0x..."
+                    value={providedHash}
+                    onChange={(e) => setProvidedHash(e.target.value)}
+                  />
+                </label>
+              </div>
+
+              <div className="row">
+                <button onClick={loadBundle}>Load bundle</button>
+                <button onClick={signLoadedBundle} disabled={!loadedBundle}>Sign bundle</button>
+                <button
+                  onClick={() => loadedBundle && downloadJson(`safe-tx-signed-${loadedBundle.safeTxHash}.json`, loadedBundle)}
+                  disabled={!loadedBundle}
+                >
+                  Download updated bundle
+                </button>
+                <button onClick={executeLoadedBundle} disabled={!loadedBundle}>Execute tx</button>
+              </div>
+
+              {loadedBundle && (
+                <div className="result">
+                  <div><b>Safe:</b> <code>{loadedBundle.safeAddress}</code></div>
+                  <div><b>Hash:</b> <code>{loadedBundle.safeTxHash}</code></div>
+                  <div><b>Signatures:</b> {loadedBundle.signatures.length}</div>
+                </div>
+              )}
+            </>
           )}
         </div>
-
-        {createdBundle && (
-          <div className="result">
-            <div><b>Safe tx hash:</b> <code>{createdBundle.safeTxHash}</code></div>
-            <div><b>Signatures:</b> {createdBundle.signatures.length}</div>
-          </div>
-        )}
-      </section>
-
-      <section className="card">
-        <h2>3) Sign / execute existing package</h2>
-        <p className="muted">
-          Load a bundle JSON, validate hash, append your signature, re-download, and execute when threshold is met.
-        </p>
-
-        <div className="form-grid">
-          <label>
-            Bundle JSON
-            <input
-              type="file"
-              accept="application/json"
-              onChange={(e) => setBundleFile(e.target.files?.[0] ?? null)}
-            />
-          </label>
-          <label>
-            Optional hash override/verification
-            <input
-              placeholder="0x..."
-              value={providedHash}
-              onChange={(e) => setProvidedHash(e.target.value)}
-            />
-          </label>
-        </div>
-
-        <div className="row">
-          <button onClick={loadBundle}>Load bundle</button>
-          <button onClick={signLoadedBundle} disabled={!loadedBundle}>Sign bundle</button>
-          <button
-            onClick={() => loadedBundle && downloadJson(`safe-tx-signed-${loadedBundle.safeTxHash}.json`, loadedBundle)}
-            disabled={!loadedBundle}
-          >
-            Download updated bundle
-          </button>
-          <button onClick={executeLoadedBundle} disabled={!loadedBundle}>Execute tx</button>
-        </div>
-
-        {loadedBundle && (
-          <div className="result">
-            <div><b>Safe:</b> <code>{loadedBundle.safeAddress}</code></div>
-            <div><b>Hash:</b> <code>{loadedBundle.safeTxHash}</code></div>
-            <div><b>Signatures:</b> {loadedBundle.signatures.length}</div>
-          </div>
-        )}
       </section>
 
       <section className="card">

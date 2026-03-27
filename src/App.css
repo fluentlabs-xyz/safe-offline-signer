@@ -91,6 +91,30 @@ body {
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
 }
 
+.tab-bar {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.tab-btn {
+  border: 1px solid var(--border);
+  background: var(--bg-card-alt);
+  color: var(--text-secondary);
+}
+
+.tab-btn.active {
+  border-color: var(--green-primary);
+  background: rgba(50, 254, 107, 0.1);
+  color: var(--text-primary);
+}
+
+.tab-content {
+  display: grid;
+  gap: 10px;
+}
+
 .status-grid > div {
   display: grid;
   gap: 2px;

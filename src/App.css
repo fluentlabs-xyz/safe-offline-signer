@@ -1,7 +1,42 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+@font-face {
+  font-family: 'Bossa';
+  src: url('https://fluentscan.xyz/fonts/Bossa-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Bossa';
+  src: url('https://fluentscan.xyz/fonts/Bossa-Medium.woff2') format('woff2');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Bossa';
+  src: url('https://fluentscan.xyz/fonts/Bossa-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
+  color-scheme: dark;
+  --bg-primary: #000000;
+  --bg-card: #111111;
+  --bg-card-alt: #171923;
+  --border: rgba(255, 255, 255, 0.1);
+  --text-primary: #ffffff;
+  --text-secondary: rgba(255, 255, 255, 0.5);
+  --green-primary: #32fe6b;
+  --green-hover: #86efac;
+  --focus-ring: rgba(50, 254, 107, 0.35);
+  --code-bg: #0b0b0b;
   font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
-  color: #0f172a;
-  background: #f8fafc;
 }
 
 * {
@@ -10,19 +45,24 @@
 
 body {
   margin: 0;
+  color: var(--text-primary);
+  background:
+    radial-gradient(circle at 20% -20%, rgba(50, 254, 107, 0.08), transparent 35%),
+    radial-gradient(circle at 120% 0%, rgba(151, 71, 255, 0.08), transparent 35%),
+    var(--bg-primary);
 }
 
 .page {
-  max-width: 1100px;
+  max-width: 1160px;
   margin: 0 auto;
-  padding: 20px;
+  padding: 24px;
   display: grid;
   gap: 14px;
 }
 
 .card {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.01)), var(--bg-card);
+  border: 1px solid var(--border);
   border-radius: 12px;
   padding: 16px;
 }
@@ -34,7 +74,9 @@ body {
 
 .topbar h1 {
   margin: 0;
-  font-size: 22px;
+  font-size: 24px;
+  letter-spacing: 0.1px;
+  font-family: Bossa, Inter, sans-serif;
 }
 
 .top-actions {
@@ -56,18 +98,20 @@ body {
 
 .label {
   font-size: 12px;
-  color: #64748b;
+  color: var(--text-secondary);
 }
 
 .muted {
   margin-top: 6px;
-  color: #475569;
+  color: var(--text-secondary);
   font-size: 14px;
 }
 
 h2 {
   margin: 0 0 8px;
-  font-size: 18px;
+  font-size: 19px;
+  letter-spacing: 0.1px;
+  font-family: Bossa, Inter, sans-serif;
 }
 
 .form-grid,
@@ -93,10 +137,20 @@ button {
 input,
 select,
 textarea {
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
   padding: 10px;
-  background: #fff;
+  background: var(--bg-card-alt);
+  color: var(--text-primary);
+  transition: border-color 0.15s ease;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--green-primary);
+  box-shadow: 0 0 0 3px var(--focus-ring);
 }
 
 textarea {
@@ -104,16 +158,30 @@ textarea {
 }
 
 button {
-  border: 1px solid #0f172a;
-  background: #0f172a;
-  color: white;
-  border-radius: 8px;
+  border: 1px solid var(--green-primary);
+  background: var(--green-primary);
+  color: #000;
+  border-radius: 10px;
+  font-weight: 600;
   padding: 9px 12px;
   cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    transform 0.08s ease;
+}
+
+button:hover:not(:disabled) {
+  background: var(--green-hover);
+  border-color: var(--green-hover);
+}
+
+button:active:not(:disabled) {
+  transform: translateY(1px);
 }
 
 button:disabled {
-  opacity: 0.55;
+  opacity: 0.45;
   cursor: not-allowed;
 }
 
@@ -128,9 +196,9 @@ button:disabled {
 .result {
   margin-top: 10px;
   padding: 10px;
-  border: 1px dashed #94a3b8;
+  border: 1px dashed var(--border);
   border-radius: 8px;
-  background: #f8fafc;
+  background: rgba(255, 255, 255, 0.03);
   display: grid;
   gap: 6px;
 }
@@ -143,10 +211,11 @@ code {
 
 pre {
   margin: 8px 0 0;
-  background: #0f172a;
+  background: var(--code-bg);
   color: #e2e8f0;
   padding: 12px;
   border-radius: 8px;
+  border: 1px solid var(--border);
   overflow: auto;
   max-width: 100%;
   white-space: pre-wrap;
@@ -157,8 +226,9 @@ pre {
 .status {
   position: sticky;
   bottom: 0;
-  background: #0f172a;
-  color: #f8fafc;
+  background: var(--bg-card-alt);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
   border-radius: 10px;
   padding: 10px 12px;
   font-size: 14px;

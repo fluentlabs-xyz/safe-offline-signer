@@ -27,7 +27,7 @@ type SignatureJson = {
 
 type SafeTxBundle = {
   version: '1.0'
-  safeVersion: SafeVersion
+  safeVersion: SupportedSafeVersion
   chainId: number
   network: string
   safeAddress: string
@@ -58,20 +58,63 @@ type TxTemplateJson = {
 
 type UnknownRecord = Record<string, unknown>
 
-const SAFE_CONTRACTS_V141 = {
-  compatibilityFallbackHandler: '0xfd0732Dc9E303f09fCEf3a7388Ad10A83459Ec99',
-  createCall: '0x9b35Af71d77eaf8d7e40252370304687390A1A52',
-  multiSendCallOnly: '0x9641d764fc13c8B624c04430C7356C1C7C8102e2',
-  multiSend: '0x38869bf66a61cF6bDB996A6aE40D5853Fd43B526',
-  safeL2: '0x29fcB43b46531BcA003ddC8FCB67FFE91900C762',
-  safeMigration: '0x526643F69b81B008F46d95CD5ced5eC0edFFDaC6',
-  safeProxyFactory: '0x4e1DCf7AD4e460CfD30791CCC4F9c8a4f820ec67',
-  safeToL2Migration: '0xfF83F6335d8930cBad1c0D439A841f01888D9f69',
-  safeToL2Setup: '0xBD89A1CE4DDe368FFAB0eC35506eEcE0b1fFdc54',
-  safe: '0x41675C099F32341bf84BFc5382aF534df5C7461a',
-  signMessageLib: '0xd53cd0aB83D845Ac265BE939c57F53AD838012c9',
-  simulateTxAccessor: '0x3d4BA2E0884aa488718476ca2FB8Efc291A46199',
-} as const
+type SupportedSafeVersion = '1.4.1' | '1.5.0'
+
+const V141: SupportedSafeVersion = '1.4.1'
+const V150: SupportedSafeVersion = '1.5.0'
+
+type SafeContractSet = {
+  fallbackHandler: string
+  extensibleFallbackHandler?: string
+  tokenCallbackHandler?: string
+  createCall: string
+  multiSendCallOnly: string
+  multiSend: string
+  safeL2: string
+  safeMigration: string
+  safeProxyFactory: string
+  safeToL2Migration?: string
+  safeToL2Setup: string
+  safe: string
+  signMessageLib: string
+  simulateTxAccessor: string
+}
+
+const SAFE_CONTRACTS: Record<SupportedSafeVersion, SafeContractSet> = {
+  '1.4.1': {
+    fallbackHandler: '0xfd0732Dc9E303f09fCEf3a7388Ad10A83459Ec99',
+    createCall: '0x9b35Af71d77eaf8d7e40252370304687390A1A52',
+    multiSendCallOnly: '0x9641d764fc13c8B624c04430C7356C1C7C8102e2',
+    multiSend: '0x38869bf66a61cF6bDB996A6aE40D5853Fd43B526',
+    safeL2: '0x29fcB43b46531BcA003ddC8FCB67FFE91900C762',
+    safeMigration: '0x526643F69b81B008F46d95CD5ced5eC0edFFDaC6',
+    safeProxyFactory: '0x4e1DCf7AD4e460CfD30791CCC4F9c8a4f820ec67',
+    safeToL2Migration: '0xfF83F6335d8930cBad1c0D439A841f01888D9f69',
+    safeToL2Setup: '0xBD89A1CE4DDe368FFAB0eC35506eEcE0b1fFdc54',
+    safe: '0x41675C099F32341bf84BFc5382aF534df5C7461a',
+    signMessageLib: '0xd53cd0aB83D845Ac265BE939c57F53AD838012c9',
+    simulateTxAccessor: '0x3d4BA2E0884aa488718476ca2FB8Efc291A46199',
+  },
+  '1.5.0': {
+    fallbackHandler: '0x85a8ca358D388530ad0fB95D0cb89Dd44Fc242c3',
+    extensibleFallbackHandler: '0x85a8ca358D388530ad0fB95D0cb89Dd44Fc242c3',
+    tokenCallbackHandler: '0x54e86d004d71a8D2112ec75FaCE57D730b0433F3',
+    createCall: '0x2Ef5ECfbea521449E4De05EDB1ce63B75eDA90B4',
+    multiSendCallOnly: '0xA83c336B20401Af773B6219BA5027174338D1836',
+    multiSend: '0x218543288004CD07832472D464648173c77D7eB7',
+    safeL2: '0xEdd160fEBBD92E350D4D398fb636302fccd67C7e',
+    safeMigration: '0x6439e7ABD8Bb915A5263094784C5CF561c4172AC',
+    safeProxyFactory: '0x14F2982D601c9458F93bd70B218933A6f8165e7b',
+    safeToL2Setup: '0x900C7589200010D6C6eCaaE5B06EBe653bc2D82a',
+    safe: '0xFf51A5898e281Db6DfC7855790607438dF2ca44b',
+    signMessageLib: '0x4FfeF8222648872B3dE295Ba1e49110E61f5b5aa',
+    simulateTxAccessor: '0x07EfA797c55B5DdE3698d876b277aBb6B893654C',
+  },
+}
+
+function isSupportedSafeVersion(value: unknown): value is SupportedSafeVersion {
+  return value === V141 || value === V150
+}
 
 const NETWORKS: Record<NetworkKey, NetworkConfig> = {
   mainnet: {
@@ -90,7 +133,8 @@ const NETWORKS: Record<NetworkKey, NetworkConfig> = {
   },
 }
 
-const V141: SafeVersion = '1.4.1'
+const DEFAULT_NETWORK: NetworkKey = 'mainnet'
+const DEFAULT_SAFE_VERSION: SupportedSafeVersion = V150
 
 function toHexChainId(chainId: number): string {
   return `0x${chainId.toString(16)}`
@@ -117,17 +161,19 @@ function parseOwners(raw: string): string[] {
     .filter(Boolean)
 }
 
-function buildContractNetworks(chainId: number) {
+function buildContractNetworks(chainId: number, safeVersion: SupportedSafeVersion) {
+  const contracts = SAFE_CONTRACTS[safeVersion]
+
   return {
     [String(chainId)]: {
-      safeSingletonAddress: SAFE_CONTRACTS_V141.safeL2,
-      safeProxyFactoryAddress: SAFE_CONTRACTS_V141.safeProxyFactory,
-      multiSendAddress: SAFE_CONTRACTS_V141.multiSend,
-      multiSendCallOnlyAddress: SAFE_CONTRACTS_V141.multiSendCallOnly,
-      fallbackHandlerAddress: SAFE_CONTRACTS_V141.compatibilityFallbackHandler,
-      signMessageLibAddress: SAFE_CONTRACTS_V141.signMessageLib,
-      createCallAddress: SAFE_CONTRACTS_V141.createCall,
-      simulateTxAccessorAddress: SAFE_CONTRACTS_V141.simulateTxAccessor,
+      safeSingletonAddress: contracts.safeL2,
+      safeProxyFactoryAddress: contracts.safeProxyFactory,
+      multiSendAddress: contracts.multiSend,
+      multiSendCallOnlyAddress: contracts.multiSendCallOnly,
+      fallbackHandlerAddress: contracts.fallbackHandler,
+      signMessageLibAddress: contracts.signMessageLib,
+      createCallAddress: contracts.createCall,
+      simulateTxAccessorAddress: contracts.simulateTxAccessor,
     },
   }
 }
@@ -212,7 +258,10 @@ function extractSafeTransactionData(input: UnknownRecord): SafeTransactionData |
   return null
 }
 
-function parseBundleLikeJson(raw: unknown, defaults: { chainId: number; network: string }): SafeTxBundle {
+function parseBundleLikeJson(
+  raw: unknown,
+  defaults: { chainId: number; network: string; safeVersion: SupportedSafeVersion },
+): SafeTxBundle {
   const root = asRecord(raw)
   if (!root) throw new Error('JSON root must be an object')
 
@@ -269,9 +318,14 @@ function parseBundleLikeJson(raw: unknown, defaults: { chainId: number; network:
     }
   }
 
+  const rawSafeVersion = root.safeVersion ?? defaults.safeVersion
+  if (!isSupportedSafeVersion(rawSafeVersion)) {
+    throw new Error(`Unsupported safeVersion in bundle: ${String(rawSafeVersion)}`)
+  }
+
   return {
     version: '1.0',
-    safeVersion: V141,
+    safeVersion: rawSafeVersion,
     chainId: Number(root.chainId ?? defaults.chainId),
     network: String(root.network ?? defaults.network),
     safeAddress,
@@ -283,6 +337,7 @@ function parseBundleLikeJson(raw: unknown, defaults: { chainId: number; network:
 }
 
 function txBundleFromSafeTx(params: {
+  safeVersion: SupportedSafeVersion
   chainId: number
   network: string
   safeAddress: string
@@ -292,7 +347,7 @@ function txBundleFromSafeTx(params: {
 }): SafeTxBundle {
   return {
     version: '1.0',
-    safeVersion: V141,
+    safeVersion: params.safeVersion,
     chainId: params.chainId,
     network: params.network,
     safeAddress: params.safeAddress,
@@ -320,12 +375,14 @@ function safeTxFromBundle(bundle: SafeTxBundle): EthSafeTransaction {
 }
 
 export default function App() {
-  const [selectedNetwork, setSelectedNetwork] = useState<NetworkKey>('testnet')
+  const [selectedNetwork, setSelectedNetwork] = useState<NetworkKey>(DEFAULT_NETWORK)
+  const [selectedSafeVersion, setSelectedSafeVersion] = useState<SupportedSafeVersion>(DEFAULT_SAFE_VERSION)
   const [connectedAccount, setConnectedAccount] = useState<string>('')
   const [walletChainId, setWalletChainId] = useState<number | null>(null)
   const [status, setStatus] = useState<string>('Ready')
 
   const network = NETWORKS[selectedNetwork]
+  const activeSafeContracts = SAFE_CONTRACTS[selectedSafeVersion]
   const [mainnetRpc, setMainnetRpc] = useState(NETWORKS.mainnet.rpcUrl)
   const [testnetRpc, setTestnetRpc] = useState(NETWORKS.testnet.rpcUrl)
 
@@ -414,7 +471,7 @@ export default function App() {
     }
   }
 
-  async function initSafeForAddress(safeAddress: string) {
+  async function initSafeForAddress(safeAddress: string, safeVersion: SupportedSafeVersion = selectedSafeVersion) {
     const ethereum = getEthereum()
     if (!ethereum) throw new Error('No injected wallet found')
     if (!connectedAccount) throw new Error('Connect wallet first')
@@ -423,7 +480,7 @@ export default function App() {
       provider: ethereum,
       signer: connectedAccount,
       safeAddress,
-      contractNetworks: buildContractNetworks(network.chainId),
+      contractNetworks: buildContractNetworks(network.chainId, safeVersion),
       onchainAnalytics: { project: 'gnosis-safe-private', platform: 'web' },
     })
   }
@@ -458,14 +515,14 @@ export default function App() {
           safeAccountConfig: {
             owners,
             threshold: safeThreshold,
-            fallbackHandler: SAFE_CONTRACTS_V141.compatibilityFallbackHandler,
+            fallbackHandler: activeSafeContracts.fallbackHandler,
           },
           safeDeploymentConfig: {
-            safeVersion: V141,
+            safeVersion: selectedSafeVersion as SafeVersion,
             saltNonce: safeSaltNonce,
           },
         },
-        contractNetworks: buildContractNetworks(network.chainId),
+        contractNetworks: buildContractNetworks(network.chainId, selectedSafeVersion),
         onchainAnalytics: { project: 'gnosis-safe-private', platform: 'web' },
       })
 
@@ -544,6 +601,7 @@ export default function App() {
 
       const safeTxHash = await safe.getTransactionHash(safeTx)
       const bundle = txBundleFromSafeTx({
+        safeVersion: selectedSafeVersion,
         chainId: network.chainId,
         network: network.name,
         safeAddress: safeAddressInput.trim(),
@@ -570,11 +628,12 @@ export default function App() {
       const bundle = parseBundleLikeJson(json, {
         chainId: network.chainId,
         network: network.name,
+        safeVersion: selectedSafeVersion,
       })
 
       setLoadedBundle(bundle)
       setProvidedHash(bundle.safeTxHash || '')
-      setStatus(`Bundle loaded (${bundle.signatures.length} signature(s) parsed)`)
+      setStatus(`Bundle loaded for Safe ${bundle.safeVersion} (${bundle.signatures.length} signature(s) parsed)`)
     } catch (err) {
       setStatus(`Load bundle failed: ${(err as Error).message}`)
     }
@@ -588,7 +647,7 @@ export default function App() {
 
     try {
       await ensureChain(network)
-      const safe = await initSafeForAddress(loadedBundle.safeAddress)
+      const safe = await initSafeForAddress(loadedBundle.safeAddress, loadedBundle.safeVersion)
       const safeTx = safeTxFromBundle(loadedBundle)
 
       const computedHash = await safe.getTransactionHash(safeTx)
@@ -600,6 +659,7 @@ export default function App() {
       safeTx.addSignature(signature)
 
       const signedBundle = txBundleFromSafeTx({
+        safeVersion: loadedBundle.safeVersion,
         chainId: loadedBundle.chainId,
         network: loadedBundle.network,
         safeAddress: loadedBundle.safeAddress,
@@ -624,7 +684,7 @@ export default function App() {
 
     try {
       await ensureChain(network)
-      const safe = await initSafeForAddress(loadedBundle.safeAddress)
+      const safe = await initSafeForAddress(loadedBundle.safeAddress, loadedBundle.safeVersion)
       const safeTx = safeTxFromBundle(loadedBundle)
 
       const txResult = await safe.executeTransaction(safeTx)
@@ -638,14 +698,18 @@ export default function App() {
     <div className="page">
       <header className="card topbar">
         <div>
-          <h1>Fluent Safe UI (v1.4.1)</h1>
+          <h1>Fluent Safe UI (Safe v{selectedSafeVersion})</h1>
           <p className="muted">No backend. File-based multisig signature collection.</p>
         </div>
 
         <div className="top-actions">
+          <select value={selectedSafeVersion} onChange={(e) => setSelectedSafeVersion(e.target.value as SupportedSafeVersion)}>
+            <option value="1.5.0">Safe v1.5.0</option>
+            <option value="1.4.1">Safe v1.4.1</option>
+          </select>
           <select value={selectedNetwork} onChange={(e) => switchTo(e.target.value as NetworkKey)}>
-            <option value="testnet">Fluent Testnet (20994)</option>
             <option value="mainnet">Fluent Mainnet (25363)</option>
+            <option value="testnet">Fluent Testnet (20994)</option>
           </select>
           <button onClick={connectWallet}>{connectedAccount ? 'Reconnect Wallet' : 'Connect Wallet'}</button>
         </div>
@@ -664,8 +728,12 @@ export default function App() {
             <span>{network.name}</span>
           </div>
           <div>
+            <span className="label">Safe version</span>
+            <span>{selectedSafeVersion}</span>
+          </div>
+          <div>
             <span className="label">Safe singleton</span>
-            <span>{truncate(SAFE_CONTRACTS_V141.safeL2)} (SafeL2)</span>
+            <span>{truncate(activeSafeContracts.safeL2)} (SafeL2)</span>
           </div>
         </div>
       </header>
@@ -786,6 +854,7 @@ export default function App() {
 
               {createdBundle && (
                 <div className="result">
+                  <div><b>Safe version:</b> {createdBundle.safeVersion}</div>
                   <div><b>Safe tx hash:</b> <code>{createdBundle.safeTxHash}</code></div>
                   <div><b>Signatures:</b> {createdBundle.signatures.length}</div>
                 </div>
@@ -834,6 +903,7 @@ export default function App() {
               {loadedBundle && (
                 <div className="result">
                   <div><b>Safe:</b> <code>{loadedBundle.safeAddress}</code></div>
+                  <div><b>Safe version:</b> {loadedBundle.safeVersion}</div>
                   <div><b>Hash:</b> <code>{loadedBundle.safeTxHash}</code></div>
                   <div><b>Signatures:</b> {loadedBundle.signatures.length}</div>
                 </div>
@@ -869,6 +939,7 @@ export default function App() {
         <p className="muted">Bundle/signature import accepts multiple formats, including forge-style signatures:</p>
         <pre>{`{
   "safeAddress": "0xYourSafe",
+  "safeVersion": "1.5.0",
   "safeTxHash": "0x...",
   "safeTransactionData": {
     "to": "0x...",

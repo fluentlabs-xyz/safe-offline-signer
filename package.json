@@ -10,8 +10,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@safe-global/protocol-kit": "^6.1.2",
-    "@safe-global/types-kit": "^3.0.0",
+    "@safe-global/protocol-kit": "^7.0.0",
+    "@safe-global/types-kit": "^3.1.0",
     "buffer": "^6.0.3",
     "ethers": "^6.16.0",
     "react": "^19.2.4",

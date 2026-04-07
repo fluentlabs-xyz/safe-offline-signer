@@ -1,6 +1,14 @@
 # Fluent Safe UI App
 
-React + TypeScript + Vite frontend for Safe v1.4.1 on Fluent chains.
+React + TypeScript + Vite frontend for Safe on Fluent chains.
+
+Supported Safe versions:
+- v1.5.0
+- v1.4.1
+
+Defaults:
+- Network: Fluent Mainnet (chainId 25363)
+- Safe version: v1.5.0
 
 ## Run
 
